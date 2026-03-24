@@ -2,7 +2,6 @@
 #define SJTU_DEQUE_HPP
 
 #include "exceptions.hpp"
-
 #include <cstddef>
 
 namespace sjtu {
@@ -13,9 +12,9 @@ private:
     static constexpr int chunk_size = 16;
     static constexpr int map_base = 8;
     struct Chunk {
-        T* arr;
+        T* arr;   //存元素
         T* first;
-        T* last;
+        T* last;  //最后的下一个
         Chunk() {
             arr = static_cast<T*>(::operator new(sizeof(T) * chunk_size));
             first = last = arr;
@@ -91,10 +90,8 @@ public:
 
 	                    Chunk** next = tmp.node + 1;
 
-	                    while (next <= dq->map + dq->last &&
-                                   (*next == nullptr ||
-                                    (*next)->first == (*next)->last))
-	                        next++;
+	                    while (next <= dq->map + dq->last && (*next == nullptr || (*next)->first == (*next)->last))
+	                        ++next;
 
 	                    if (next > dq->map + dq->last) {
 	                        tmp.node = dq->map + dq->last;
@@ -113,7 +110,6 @@ public:
 	        } else {
 	            return *this - (-n);
 	        }
-
 	    }
 
 
@@ -134,10 +130,8 @@ public:
 
 	                    Chunk** prev = tmp.node - 1;
 
-	                    while (prev >= dq->map + dq->start &&
-                                   (*prev == nullptr ||
-                                    (*prev)->first == (*prev)->last))
-	                        prev--;
+	                    while (prev >= dq->map + dq->start && (*prev == nullptr || (*prev)->first == (*prev)->last))
+	                        --prev;
 
 	                    if (prev < dq->map + dq->start) {
 	                        tmp.node = dq->map + dq->start;
@@ -194,21 +188,11 @@ public:
 	        ++begin_offset;
 
 	        if (ptr == last) {
-	            Chunk** next = node + 1;
-
-	            while (next <= dq->map + dq->last &&
-                           (*next == nullptr ||
-                            (*next)->first == (*next)->last))
-	                next++;
-
-	            if (next <= dq->map + dq->last) {
-	                node = next;
+	            if (node != dq->map + dq->last) {
+	                ++node;
 	                first = (*node)->first;
-	                last = (*node)->last;
-	                ptr = first;
-	            } else {
-	                node = dq->map + dq->last;
-	                ptr = last;
+	                last  = (*node)->last;
+	                ptr   = first;
 	            }
 	        }
 
@@ -233,22 +217,14 @@ public:
 	        --begin_offset;
 
 	        if (ptr == first) {
-	            Chunk** prev = node - 1;
-
-	            while (prev >= dq->map + dq->start &&
-                           (*prev == nullptr ||
-                            (*prev)->first == (*prev)->last))
-	                prev--;
-
-	            if (prev >= dq->map + dq->start) {
-	                node = prev;
-	                first = (*node)->first;
-	                last = (*node)->last;
-	                ptr = last - 1;
-	            }
+	            --node;
+	            first = (*node)->first;
+	            last  = (*node)->last;
+	            ptr   = last - 1;
 	        } else {
 	            --ptr;
 	        }
+
 
 	        return *this;
 	    }
@@ -738,14 +714,38 @@ public:
 	        return begin();
 	    }
 
-	    push_back(back());
+	    if (rank <= sum / 2) {
+	        push_front(front());
 
-	    for (size_t i = sum - 1; i > rank; --i)
-	        (*this)[i] = (*this)[i - 1];
+	        iterator it = begin();
+	        ++it;
 
-	    (*this)[rank] = value;
+	        iterator target = begin() + rank;
 
-	    return begin() + rank;
+	        while (it != target + 1) {
+	            *(it - 1) = *it;
+	            ++it;
+	        }
+
+	        *(begin() + rank) = value;
+
+	        return begin() + rank;
+	    }
+	    else {
+	        push_back(back());
+
+	        iterator it = end() - 1;
+	        iterator target = begin() + rank;
+
+	        while (it != target) {
+	            *it = *(it - 1);
+	            --it;
+	        }
+
+	        *target = value;
+
+	        return target;
+	    }
 	}
 	/**
 	 * removes specified element at pos.
@@ -763,15 +763,34 @@ public:
 	        throw invalid_iterator();
 
 	    size_t rank = pos.begin_offset;
+	    iterator target = pos;
+	    if (rank < sum / 2) {
+	        iterator it = pos;
 
-	    for (size_t i = rank; i + 1 < sum; ++i)
-	        (*this)[i] = (*this)[i + 1];
+	        while (it != begin()) {
+	            *it = *(it - 1);
+	            --it;
+	        }
 
-	    pop_back();
+	        pop_front();
 
-	    if (rank == sum) return end();
+	        return begin() + rank;
+	    }
+	    else {
+	        iterator it = pos;
+	        iterator nxt = pos;
+	        ++nxt;
 
-	    return begin() + rank;
+	        while (nxt != end()) {
+	            *it = *nxt;
+	            ++it;
+	            ++nxt;
+	        }
+	        pop_back();
+	        if (rank >= sum) return end();
+
+	        return begin() + rank;
+	    }
 	}
 	/**
 	 * adds an element to the end
