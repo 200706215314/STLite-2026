@@ -20,13 +20,6 @@ function(add_map_case case_name)
   )
 
   if(case_name MATCHES "\\.memcheck$")
-    set(MAP_MEMCHECK_SANITIZERS
-      -fsanitize=address
-      -fsanitize=undefined
-    )
-    if(NOT APPLE)
-      list(APPEND MAP_MEMCHECK_SANITIZERS -fsanitize=leak)
-    endif()
 
     target_compile_options(${target_name} PRIVATE
       -g

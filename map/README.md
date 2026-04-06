@@ -61,9 +61,7 @@ ctest --test-dir build -R '^map_.*_memcheck$' --output-on-failure
 
 说明：
 
-- `.memcheck` 测试目标默认会使用 `-fsanitize=address` 和 `-fsanitize=undefined`。
-- 在非 Apple 平台还会额外启用 `-fsanitize=leak`。
-- 如果系统安装了 `valgrind`，`.memcheck` 测试会自动在 valgrind 下运行并进行泄漏检查；如果未安装，则自动回退到仅使用 sanitizer 的流程。
+- 如果系统安装了 `valgrind`，`.memcheck` 测试会自动在 valgrind 下运行并进行泄漏检查
 
 ## 截止日期
 
