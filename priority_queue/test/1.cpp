@@ -60,6 +60,11 @@ struct Natural {
     }
 };
 
+<<<<<<< HEAD
+=======
+// Discarded, for not cooperating with latest requirements.
+/*
+>>>>>>> acm-course/main
 void TestCompareException() {
     std::cout << "Testing compare exception...";
 
@@ -102,11 +107,19 @@ void TestCompareException() {
 
     std::cout << "ok." << std::endl;
 }
+<<<<<<< HEAD
+=======
+    */
+>>>>>>> acm-course/main
 
 int main(int argc, char* const argv[]) {
     TestConstructorAndPush();
     TestSize();
     TestException();
+<<<<<<< HEAD
     TestCompareException();
+=======
+    // TestCompareException();
+>>>>>>> acm-course/main
     return 0;
 }

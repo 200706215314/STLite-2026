@@ -170,6 +170,10 @@ struct binary {
     binary& operator=(const binary& other) {
         len = other.len;
         for (int i = 0; i < len; i++) number[i] = other.number[i];
+<<<<<<< HEAD
+=======
+        return *this;
+>>>>>>> acm-course/main
     }
 };
 bool operator<(const binary& a, const binary& b) {

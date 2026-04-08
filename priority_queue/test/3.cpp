@@ -37,6 +37,10 @@ class T2  // pointer + no_construct
         if (this == &other) return *this;
         delete data;
         data = new int(*(other.data));
+<<<<<<< HEAD
+=======
+        return *this;
+>>>>>>> acm-course/main
     }
     ~T2() {
         delete data;

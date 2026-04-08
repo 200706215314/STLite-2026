@@ -13,9 +13,15 @@ CMakeUserPresets.json
 
 build/
 .cache/
+<<<<<<< HEAD
 data/
 */vector/data/
 */deque/data/
 */priority_queue/data/
+*/map/data/
+*/map/corner_data/
 data/*
 **/data/*
+=======
+.idea/
+>>>>>>> acm-course/main
