@@ -13,3 +13,9 @@ CMakeUserPresets.json
 
 build/
 .cache/
+data/
+*/vector/data/
+*/deque/data/
+*/priority_queue/data/
+data/*
+**/data/*

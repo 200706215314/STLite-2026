@@ -1,1 +1,0 @@
-Initial size: 1000000

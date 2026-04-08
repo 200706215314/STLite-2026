@@ -12,8 +12,8 @@ private:
     static constexpr int chunk_size = 16;
     static constexpr int map_base = 8;
     struct Chunk {
-        T* arr;   //存元素
-        T* first;
+        T* arr;   //整块内存起点
+        T* first;   //当前有效元素起点
         T* last;  //最后的下一个
         Chunk() {
             arr = static_cast<T*>(::operator new(sizeof(T) * chunk_size));
@@ -26,8 +26,8 @@ private:
             ::operator delete(arr);
         }
     };
-    Chunk** map;
-    int map_size, start, last, sum;
+    Chunk** map;   //map[i] 指向一个 chunk
+    int map_size, start, last, sum;   //[start, last] 是有效 chunk 区间
 
     void map_extend() {
         map_size *= 2;
@@ -59,12 +59,12 @@ public:
 		 * TODO add data members
 		 *   just add whatever you want.
 		 */
-	    T* ptr;
-	    T* first;
-	    T* last;
-	    Chunk** node;    //指向 指向chunk*的map[]的指针   指向中央控制器中指向当前块的指针
+	    T* ptr;   //当前元素位置
+	    T* first; //当前 chunk 的有效起点  支持 ++ / -- 跨 chunk  ptr = (*node)->first;
+	    T* last; //当前 chunk 的有效终点（后一个）  判断“是否到达 chunk 边界” if (ptr == last)
+	    Chunk** node;    //指向 指向chunk*的map[i]的指针   指向中央控制器中指向当前块的指针
 	    deque<T>* dq;
-	    int begin_offset;
+	    int begin_offset;  //当前 iterator 距离 begin() 的偏移,用来实现：it1 - it2,否则无法 O(1) 算距离
 	public:
 	    explicit iterator(T* p = nullptr, T* f = nullptr, T* l = nullptr, Chunk** n = nullptr, deque<T>* d = nullptr, int off = 0)
 	    :ptr(p), first(f), last(l), node(n), dq(d), begin_offset(off) {};
@@ -74,6 +74,7 @@ public:
 		 * as well as operator-
 		 */
 	    iterator operator+(const int &n) const {
+	        //不连续数组 → 分段跳
 	        iterator tmp = *this;
 
 	        if (n >= 0) {
@@ -81,24 +82,23 @@ public:
 
 	            while (remain > 0) {
 	                int space = tmp.last - tmp.ptr;
-
+	                //情况1：当前 chunk 够走
 	                if (remain < space) {
 	                    tmp.ptr += remain;
 	                    remain = 0;
-	                } else {
+	                } else {//情况2：当前 chunk 不够
 	                    remain -= space;
-
+	                    //找下一个非空 chunk
 	                    Chunk** next = tmp.node + 1;
-
 	                    while (next <= dq->map + dq->last && (*next == nullptr || (*next)->first == (*next)->last))
 	                        ++next;
-
+	                    //已经越界：直接变成 end()
 	                    if (next > dq->map + dq->last) {
 	                        tmp.node = dq->map + dq->last;
 	                        tmp.ptr = tmp.last;
 	                        break;
 	                    }
-
+	                    //重置到新 chunk 开头
 	                    tmp.node = next;
 	                    tmp.first = (*next)->first;
 	                    tmp.last = (*next)->last;
@@ -240,7 +240,7 @@ public:
 		 */
 		T* operator->() const noexcept {
 	        if (!dq || !node || ptr == last) throw invalid_iterator();
-	        return ptr;
+	            return ptr;
 		}
 		/**
 		 * a operator to check whether two iterators are same (pointing to the same memory).
@@ -567,7 +567,7 @@ public:
 	 */
     T & at(const size_t &pos) {
 	    if (pos >= sum) throw index_out_of_bound();
-
+	    //第一个块可能不满
 	    size_t offset = pos + (map[start]->first - map[start]->arr);
 
 	    int chunk_id = start + offset / chunk_size;
@@ -803,7 +803,7 @@ public:
 	    }
 
 	    Chunk* c = map[last];
-
+	    //最后一个块刚好满了
 	    if (c->last == c->arr + chunk_size) {
 	        if (last == map_size - 1) map_extend();
 	        last++;
@@ -833,7 +833,7 @@ public:
 	    c->last->~T();
 
 	    --sum;
-
+	    //减完之后块空了
 	    if (c->last == c->first) {
 	        delete c;
 	        map[last] = nullptr;
@@ -841,6 +841,7 @@ public:
 	        if (start != last) {
 	            last--;
 	        } else {
+	            //一个不剩，复位
 	            start = last = map_size / 2;
 	        }
 	    }
