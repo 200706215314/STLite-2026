@@ -4,9 +4,6 @@
 #ifndef SJTU_MAP_HPP
 #define SJTU_MAP_HPP
 
-#include <cstddef>
-#include <ctime>
-#include <functional>
 #include "exceptions.hpp"
 #include "utility.hpp"
 
@@ -88,28 +85,30 @@ private:
         RedBlackNode *parent = nullptr;
         RedBlackNode *grand = nullptr;
 
-        while (node != root && node->parent->colour == RED) {
+        while (node != root && node->parent->colour == RED) {  //gp is black / gp.parent is black
             parent = node->parent;
             grand = parent->parent;
 
-            if (parent == grand->l) {
+            if (parent == grand->l) {   //p is the left child of gp
                 RedBlackNode *uncle = grand->r;
-                if (uncle && uncle->colour == RED) {
+                if (uncle && uncle->colour == RED) {   //gp is black , p and uncle is red ,exchange the color ; send upwards
                     parent->colour = BLACK;
                     uncle->colour = BLACK;
                     grand->colour = RED;
                     node = grand;
-                } else {
-                    if (node == parent->r) {
+                } else {  // gp is black , p is red , uncle is black
+                    if (node == parent->r) {  //gp p node aren't a straight line -> Straighten the curved shape
                         rotateLeft(parent);
+                        //update after rotate
                         node = parent;
                         parent = node->parent;
                     }
                     parent->colour = BLACK;
                     grand->colour = RED;
                     rotateRight(grand);
+                    //break;  //The adjustment is complete. The parent of the node must be black.
                 }
-            } else {
+            } else {  //The logic is the same as be the left son.
                 RedBlackNode *uncle = grand->l;
                 if (uncle && uncle->colour == RED) {
                     parent->colour = BLACK;
@@ -134,22 +133,52 @@ private:
 
     void deleteFix(RedBlackNode *x, RedBlackNode *parent) {
         while (x != root && isBlack(x)) {
-            if (x == (parent ? parent->l : nullptr)) {
-                RedBlackNode *w = parent ? parent->r : nullptr;
-
-                if (w && w->colour == RED) {
+            //Always thinking that there is one less black node on the x side, so offset is our goal!
+            if (x == (parent ? parent->l : nullptr)) { //x is the left child of parent
+                RedBlackNode *w = parent ? parent->r : nullptr; //if parent isn't nullptr ; w = parent's right child (x's brother)
+                //situation1  make brother's color black and then continue to fall into 2/3/4 situation
+                if (w && w->colour == RED) {  //brother is red
                     w->colour = BLACK;
                     parent->colour = RED;
                     rotateLeft(parent);
                     w = parent->r;
                 }
-
-                if (isBlack(w ? w->l : nullptr) && isBlack(w ? w->r : nullptr)) {
+                //situation2
+                if (isBlack(w ? w->l : nullptr) && isBlack(w ? w->r : nullptr)) { //The brother is black, and both of his children are also black.
+                    //brother's side also "can't borrow the black node" , we can do nothing but push the "black gap" up to the father's level
                     if (w) w->colour = RED;
                     x = parent;
                     parent = x ? x->parent : nullptr;
                 } else {
-                    if (isBlack(w ? w->r : nullptr)) {
+                    //situation 3
+                    /*
+                    * parent(?)
+                    /        \
+                  x(B)       w(B)
+                            /    \
+                        near(R)   far(B)
+
+                    change color   ->  why? Because I need to rotate right around w later.
+                    After right-rotating, near will take over. Therefore, first dye near black to ensure that
+                    it can assume the role of a black node after being promoted. And w went down, dyeing it red first.
+
+                    parent(?)
+                   /        \
+                x(B)       w(R)
+                          /    \
+                    near(B)   far(B)
+
+                    after rotateRight(w);
+                    parent(?)
+                   /        \
+                 x(B)      near(B)
+                             \
+                             w(R)
+                              \
+                             far(B)
+                     */
+                    if (isBlack(w ? w->r : nullptr)) {//Brothers are black. The distant nephew of the brothers is black while the close nephew is red.
+                        //change into The situation where brother is black, while a distant nephew is red.
                         if (w && w->l) w->l->colour = BLACK;
                         if (w) {
                             w->colour = RED;
@@ -157,11 +186,25 @@ private:
                         }
                         w = parent ? parent->r : nullptr;
                     }
-
+                    //the standard terminal form
+                    /*
+                    parent(?)                dye  ->   parent(B)
+                   /        \
+                 x(B)       w(B)                        w(parent原颜色)
+                           /    \
+                          A     far(R)
+                     */
                     if (w) w->colour = parent->colour;
                     if (parent) parent->colour = BLACK;
                     if (w && w->r) w->r->colour = BLACK;
                     if (parent) rotateLeft(parent);
+                /*
+                        w(parent原颜色)
+                        /          \
+                  parent(B)        far(B)
+                 /      \
+               x(B)      A
+                 */
 
                     x = root;
                     break;
@@ -224,13 +267,13 @@ private:
         return node;
     }
 
-    RedBlackNode *findMin(RedBlackNode *node) const {
+    static RedBlackNode *findMin(RedBlackNode *node) {
         if (!node) return nullptr;
         while (node->l) node = node->l;
         return node;
     }
 
-    RedBlackNode *findMax(RedBlackNode *node) const {
+    static RedBlackNode *findMax(RedBlackNode *node) {
         if (!node) return nullptr;
         while (node->r) node = node->r;
         return node;
@@ -240,11 +283,11 @@ public:
     class const_iterator;
 
     class iterator {
-        friend class map<Key, T, Compare>;
+        friend class map;
         friend class const_iterator;
     private:
         RedBlackNode *ptr;
-        map * _map;
+        map* _map;
 
     public:
         iterator(map *m = nullptr, RedBlackNode *p = nullptr) : ptr(p), _map(m) {}
@@ -259,14 +302,14 @@ public:
         iterator &operator++() {
             if (ptr == nullptr) throw invalid_iterator();
 
-            if (ptr->r != nullptr) {
+            if (ptr->r != nullptr) {//has a right son
                 ptr = ptr->r;
                 while (ptr->l) ptr = ptr->l;
                 return *this;
             }
 
             RedBlackNode *p = ptr->parent;
-            while (p && ptr == p->r) {
+            while (p && ptr == p->r) {//if it points to the biggest element, it return nullptr which represents end()
                 ptr = p;
                 p = p->parent;
             }
@@ -290,7 +333,7 @@ public:
                 return *this;
             }
 
-            if (ptr->l) {
+            if (ptr->l) {//has a left son
                 ptr = ptr->l;
                 while (ptr->r) ptr = ptr->r;
                 return *this;
@@ -335,7 +378,7 @@ public:
     };
 
     class const_iterator {
-        friend class map<Key, T, Compare>;
+        friend class map;
         friend class iterator;
     private:
         RedBlackNode *ptr;
@@ -381,7 +424,7 @@ public:
             if (_map == nullptr) throw invalid_iterator();
 
             if (ptr == nullptr) {
-                ptr = _map->findMax(_map->root);
+                ptr = map::findMax(_map->root);
                 if (!ptr) throw invalid_iterator();
                 return *this;
             }
@@ -467,12 +510,12 @@ public:
         RedBlackNode *parent = nullptr;
 
         while (t) {
-            if (!(comp(key, t->data.first) || comp(t->data.first, key)))
+            if (!(comp(key, t->data.first) || comp(t->data.first, key)))//in the map
                 return t->data.second;
             parent = t;
             t = comp(key, t->data.first) ? t->l : t->r;
         }
-
+        //insert
         RedBlackNode *node = new RedBlackNode(RED, value_type(key, T()), nullptr, nullptr, parent);
         if (!parent) root = node;
         else if (comp(key, parent->data.first)) parent->l = node;
@@ -532,13 +575,14 @@ public:
         RedBlackNode *parent = nullptr;
 
         while (t) {
-            if (!(comp(v.first, t->data.first) || comp(t->data.first, v.first)))
+            if (!(comp(v.first, t->data.first) || comp(t->data.first, v.first)))  // value already in the tree
                 return pair<iterator, bool>(iterator(this, t), false);
             parent = t;
             t = comp(v.first, t->data.first) ? t->l : t->r;
         }
 
-        RedBlackNode *node = new RedBlackNode(RED, v, nullptr, nullptr, parent);
+        RedBlackNode *node = new RedBlackNode(RED, v, nullptr, nullptr, parent); // guarantee same number of black node , just go against rule2
+        //Maintain the parent pointer
         if (!parent) root = node;
         else if (comp(v.first, parent->data.first)) parent->l = node;
         else parent->r = node;
@@ -575,15 +619,18 @@ public:
                 if (x) x->parent = y;
                 x_parent = y;
             } else {
+                //Attach the right subtree of y to y's parent.
                 x_parent = y->parent;
                 transplant(y, y->r);
+                //Attach the right subtree of z to y.right
                 y->r = z->r;
                 y->r->parent = y;
             }
-
+            //Replace z with y
             transplant(z, y);
             y->l = z->l;
             y->l->parent = y;
+            //just replace the value, color doesn't change (inherited)
             y->colour = z->colour;
         }
 
@@ -592,7 +639,7 @@ public:
         --_size;
 
         if (y_original_color == BLACK) {
-            deleteFix(x, x_parent);
+            deleteFix(x, x_parent);  //adjust
         }
     }
 
